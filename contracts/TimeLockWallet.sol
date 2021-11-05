@@ -102,7 +102,7 @@ contract TimeLockWallet is Ownable, ReentrancyGuard, EIP712MetaTransaction {
         
             uint256 tokenBalance = token.balanceOf(address(this));
             require(depositItem.amount <= tokenBalance, "Balance is low");
-            require(token.allowance(msgSender(), address(this)) >= tokenBalance, "Token allowance not sufficient");
+            //require(token.allowance(msgSender(), address(this)) >= depositItem.amount, "Token allowance not sufficient");
             
             token.transfer(msgSender(), depositItem.amount);
         }
