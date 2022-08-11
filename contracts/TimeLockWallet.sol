@@ -47,7 +47,6 @@ contract TimeLockWallet is Ownable, ReentrancyGuard, EIP712MetaTransaction {
     function deposit(address _token, uint256 _amount, address _receiver) external nonReentrant {
             require(_amount > 0, "Non-positive deposit amount");
             require(IERC20(_token).allowance(msgSender(), address(this)) >= _amount, "Token allowance not enough");
-            IERC20(_token).transferFrom(msgSender(), address(this), _amount);
             
             uint256 depositsLength = deposits[_receiver].length;
             
@@ -57,7 +56,8 @@ contract TimeLockWallet is Ownable, ReentrancyGuard, EIP712MetaTransaction {
             depositData.amount = _amount;
             depositData.index = depositsLength;
             deposits[_receiver].push(depositData);
-            
+
+            IERC20(_token).transferFrom(msgSender(), address(this), _amount);
             emit Deposited(msgSender(), _amount, _receiver);
     }
     
@@ -92,6 +92,14 @@ contract TimeLockWallet is Ownable, ReentrancyGuard, EIP712MetaTransaction {
         Deposit memory depositItem = deposits[msgSender()][_depositIndex];
         require(depositItem.releaseTime < block.timestamp, "Funds still locked");
 
+        
+
+        // After the funds wer sent, the deposit item in the array is removed
+        // and replaced by the latest item. Then the latest position is removed.
+        deposits[msgSender()][_depositIndex] = deposits[msgSender()][depositsLength - 1];
+        deposits[msgSender()][_depositIndex].index = _depositIndex;
+        deposits[msgSender()].pop();
+
         if(depositItem.token == address(0)) { // ETH deposits
             uint256 ethBalance = address(this).balance;
             require(depositItem.amount <= ethBalance, "Balance is low");
@@ -106,12 +114,6 @@ contract TimeLockWallet is Ownable, ReentrancyGuard, EIP712MetaTransaction {
             
             token.transfer(msgSender(), depositItem.amount);
         }
-
-        // After the funds wer sent, the deposit item in the array is removed
-        // and replaced by the latest item. Then the latest position is removed.
-        deposits[msgSender()][_depositIndex] = deposits[msgSender()][depositsLength - 1];
-        deposits[msgSender()][_depositIndex].index = _depositIndex;
-        deposits[msgSender()].pop();
 
         emit Withdrawn(msgSender(), depositItem.amount);
     }
